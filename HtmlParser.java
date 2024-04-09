@@ -191,7 +191,7 @@ class DataFrame {
             std += (get(key, i) - mean) * (get(key, i) - mean) / (end - start);
 
         ArrayList<String> output = new ArrayList<>();
-        output.add(String.format("%s,%d,%d\n%.2f", key, start, end, std));
+        output.add(String.format("%s,%d,%d\n%.2f", key, start, end, sqrt(std)));
         openCSV.writeCSV(output, "output.csv");
     }
 
