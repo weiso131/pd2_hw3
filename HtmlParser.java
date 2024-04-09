@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Queue;
 import java.util.LinkedList;
+import java.text.DecimalFormat;
 
 public class HtmlParser {
     public static void main(String[] args) {
@@ -25,8 +26,7 @@ public class HtmlParser {
                 if (args[1].equals("1"))
                     df.slideMean(5, stock, start, end);
                 else if (args[1].equals("2")) {
-                    double std = df.rangeStd(stock, start, end);
-                    openCSV.addLineCSV(String.format("%s,%d,%d\n%.2f", stock, start, end, std), "output.csv");
+                    df.writeRangeStd(stock, start, end);
                 } else if (args[1].equals("3"))
                     df.stdTop3(start, end);
                 else if (args[1].equals("4"))
@@ -123,6 +123,7 @@ class openCSV {
 class DataFrame {
     ArrayList<String> names = new ArrayList<>();
     ArrayList<ArrayList<Double>> datas = new ArrayList<ArrayList<Double>>();
+    DecimalFormat decimalFormat = new DecimalFormat("#.##");
 
     public DataFrame(ArrayList<String> names, ArrayList<ArrayList<Double>> datas) {
         this.names = names;
@@ -174,7 +175,7 @@ class DataFrame {
                 String spilt = ",";
                 if (i == end - 1)
                     spilt = "\n";
-                outputData += String.format("%.2f", sum / range) + spilt;
+                outputData += String.format("%s", decimalFormat.format(sum / range)) + spilt;
             }
         }
         openCSV.addLineCSV(String.format("%s,%d,%d\n%s", key, start, end, outputData), "output.csv");
@@ -186,6 +187,11 @@ class DataFrame {
             std += (get(key, i) - mean) * (get(key, i) - mean) / (end - start);
         std = sqrt(std);
         return std;
+    }
+
+    public void writeRangeStd(String key, int start, int end) {
+        double std = rangeStd(key, start, end);
+        openCSV.addLineCSV(String.format("%s,%d,%d\n%s", key, start, end, decimalFormat.format(std)), "output.csv");
     }
 
     public void stdTop3(int start, int end) {
@@ -207,9 +213,10 @@ class DataFrame {
             }
         }
 
-        openCSV.addLineCSV(String.format("%s,%s,%s,%d,%d\n%.2f,%.2f,%.2f\n", names.get(top3Index[0]),
+        openCSV.addLineCSV(String.format("%s,%s,%s,%d,%d\n%s,%s,%s\n", names.get(top3Index[0]),
                 names.get(top3Index[1]), names.get(top3Index[2]), start, end,
-                top3[0], top3[1], top3[2]), "output.csv");
+                decimalFormat.format(top3[0]), decimalFormat.format(top3[1]),
+                decimalFormat.format(top3[2])), "output.csv");
     }
 
     public void LinearRegression(String key, int start, int end) {
@@ -222,7 +229,8 @@ class DataFrame {
         }
         slope /= timeStd;
         bias = mean - slope * timeMean;
-        openCSV.addLineCSV(String.format("%s,%d,%d\n%.2f,%.2f\n", key, start, end, slope, bias), "output.csv");
+        openCSV.addLineCSV(String.format("%s,%d,%d\n%s,%s\n", key, start, end,
+                decimalFormat.format(slope), decimalFormat.format(bias)), "output.csv");
     }
 
 }
