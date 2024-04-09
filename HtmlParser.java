@@ -23,11 +23,16 @@ public class HtmlParser {
                 String stock = args[2];
                 int start = Integer.parseInt(args[3]), end = Integer.parseInt(args[4]);
                 df.slideMean(5, stock, start, end);
-            }
-            if (args[1].equals("2")) {
+            } else if (args[1].equals("2")) {
                 String stock = args[2];
                 int start = Integer.parseInt(args[3]), end = Integer.parseInt(args[4]);
-                df.rangeStd(stock, start, end);
+                double std = df.rangeStd(stock, start, end);
+                ArrayList<String> output = new ArrayList<>();
+                output.add(String.format("%s,%d,%d\n%.2f", stock, start, end, std));
+                openCSV.writeCSV(output, "output.csv");
+            } else if (args[1].equals("3")) {
+                int start = Integer.parseInt(args[3]), end = Integer.parseInt(args[4]);
+                df.stdTop3(start, end);
             }
 
         }
@@ -183,16 +188,42 @@ class DataFrame {
         openCSV.writeCSV(output, "output.csv");
     }
 
-    public void rangeStd(String key, int start, int end) {
+    public double rangeStd(String key, int start, int end) {
         double mean = 0, std = 0;
         for (int i = start - 1; i < end; i++)
             mean += get(key, i) / (end - start + 1);
         for (int i = start - 1; i < end; i++)
             std += (get(key, i) - mean) * (get(key, i) - mean) / (end - start);
+        std = sqrt(std);
+        return std;
+    }
+
+    public void stdTop3(int start, int end) {
+        Double[] top3 = { 0.0, 0.0, 0.0 };
+        Integer[] top3Index = { 0, 0, 0 };
+
+        for (int i = 0; i < names.size(); i++) {
+            double std = rangeStd(names.get(i), start, end);
+            int index = i;
+            for (int j = 0; j < 3; j++) {
+                if (top3[j] < std) {
+                    double save = std;
+                    int saveIndex = index;
+                    std = top3[j];
+                    top3[j] = save;
+                    index = top3Index[j];
+                    top3Index[j] = saveIndex;
+                }
+            }
+        }
 
         ArrayList<String> output = new ArrayList<>();
-        output.add(String.format("%s,%d,%d\n%.2f", key, start, end, sqrt(std)));
+        output.add(String.format("%s,%s,%s,%d,%d\n", names.get(top3Index[0]),
+                names.get(top3Index[1]), names.get(top3Index[2]), start, end));
+        output.add(String.format("%.2f,%.2f,%.2f", top3[0], top3[1], top3[2]));
+
         openCSV.writeCSV(output, "output.csv");
+
     }
 
 }
@@ -204,3 +235,6 @@ class DataFrame {
 
 // task2
 // java -cp ".;./jsoup.jar" HtmlParser 1 2 AAL 1 10
+
+// task3
+// java -cp ".;./jsoup.jar" HtmlParser 1 3 AAL 1 10
