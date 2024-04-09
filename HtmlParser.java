@@ -18,7 +18,7 @@ public class HtmlParser {
         else {
             DataFrame df = openCSV.readCSV_value("data.csv");
             if (args[1].equals("0")) {
-                openCSV.writeCSV(openCSV.readCSV("data.csv"), "output.csv");
+                openCSV.writeCSV(openCSV.readCSV("data.csv", true), "output.csv");
             } else {
                 String stock = args[2];
                 int start = Integer.parseInt(args[3]), end = Integer.parseInt(args[4]);
@@ -26,9 +26,7 @@ public class HtmlParser {
                     df.slideMean(5, stock, start, end);
                 else if (args[1].equals("2")) {
                     double std = df.rangeStd(stock, start, end);
-                    ArrayList<String> output = new ArrayList<>();
-                    output.add(String.format("%s,%d,%d\n%.2f", stock, start, end, std));
-                    openCSV.writeCSV(output, "output.csv");
+                    openCSV.addLineCSV(String.format("%s,%d,%d\n%.2f", stock, start, end, std), "output.csv");
                 } else if (args[1].equals("3"))
                     df.stdTop3(start, end);
                 else if (args[1].equals("4"))
@@ -38,7 +36,7 @@ public class HtmlParser {
         }
     }
 
-    private static int saveCsv(String url) {
+    private static void saveCsv(String url) {
         int day = -1;
         try {
             Document doc = Jsoup.connect(url).get();
@@ -57,7 +55,9 @@ public class HtmlParser {
                 nameStr += name.text() + spilt;
                 dataStr += datas.get(i).text() + spilt;
             }
-            ArrayList<String> data = openCSV.readCSV("data.csv");
+            ArrayList<String> data = openCSV.readCSV("data.csv", true);
+            System.out.println(day);
+            data.add("\n");
             System.out.println(data.size());
             data.set(day, dataStr);
             if (data.get(0).equals("\n"))
@@ -66,26 +66,26 @@ public class HtmlParser {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return day;
+
     }
 }
 
 class openCSV {
-    public static ArrayList<String> readCSV(String CsvName) {
+    public static ArrayList<String> readCSV(String CsvName, boolean getData) {
         ArrayList<String> data = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(new FileReader(CsvName))) {
             String line;
             while ((line = br.readLine()) != null)
                 data.add(line + "\n");
         } catch (IOException e) {
-            for (int i = 0; i <= 30; i++)
+            for (int i = 0; i <= 30 && getData; i++)
                 data.add("\n");
         }
         return data;
     }
 
     public static DataFrame readCSV_value(String CsvName) {
-        ArrayList<String> textData = readCSV(CsvName);
+        ArrayList<String> textData = readCSV(CsvName, false);
         ArrayList<String> names = new ArrayList<String>(Arrays.asList(textData.get(0).split(",")));
         ArrayList<ArrayList<Double>> datas = new ArrayList<>();
         for (int i = 1; i <= 30; i++) {
@@ -100,12 +100,23 @@ class openCSV {
 
     public static void writeCSV(ArrayList<String> data, String CsvName) {
         try (FileWriter writer = new FileWriter(CsvName)) {
-            for (String s : data)
-                writer.append(s);
+            for (int i = 0; i < data.size(); i++) {
+                if (i == data.size() - 1 && data.get(i).charAt(data.get(i).length() - 1) == '\n')
+                    writer.append(data.get(i).subSequence(0, data.get(i).length() - 1));
+                else
+                    writer.append(data.get(i));
+            }
+
             writer.flush();
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public static void addLineCSV(String newLine, String CsvName) {
+        ArrayList<String> output = readCSV(CsvName, false);
+        output.add(newLine);
+        writeCSV(output, CsvName);
     }
 }
 
@@ -151,7 +162,6 @@ class DataFrame {
     public void slideMean(int range, String key, int start, int end) {
         double sum = 0;
         Queue<Double> queue = new LinkedList<Double>();
-        ArrayList<String> output = new ArrayList<>();
         String outputData = "";
 
         for (int i = start - 1; i < end; i++) {
@@ -167,10 +177,7 @@ class DataFrame {
                 outputData += String.format("%.2f", sum / range) + spilt;
             }
         }
-
-        output.add(String.format("%s,%d,%d\n", key, start, end));
-        output.add(outputData);
-        openCSV.writeCSV(output, "output.csv");
+        openCSV.addLineCSV(String.format("%s,%d,%d\n%s", key, start, end, outputData), "output.csv");
     }
 
     public double rangeStd(String key, int start, int end) {
@@ -199,16 +206,15 @@ class DataFrame {
                 }
             }
         }
-        ArrayList<String> output = new ArrayList<>();
-        output.add(String.format("%s,%s,%s,%d,%d\n", names.get(top3Index[0]),
-                names.get(top3Index[1]), names.get(top3Index[2]), start, end));
-        output.add(String.format("%.2f,%.2f,%.2f", top3[0], top3[1], top3[2]));
-        openCSV.writeCSV(output, "output.csv");
+
+        openCSV.addLineCSV(String.format("%s,%s,%s,%d,%d\n%.2f,%.2f,%.2f\n", names.get(top3Index[0]),
+                names.get(top3Index[1]), names.get(top3Index[2]), start, end,
+                top3[0], top3[1], top3[2]), "output.csv");
     }
 
     public void LinearRegression(String key, int start, int end) {
         double mean = getMean(key, start, end);
-        double timeMean = (start + end) / 2;
+        double timeMean = ((double) (start + end)) / 2;
         double slope = 0, timeStd = 0, bias = 0;
         for (int t = start; t <= end; t++) {
             slope += (t - timeMean) * (get(key, t - 1) - mean);
@@ -216,12 +222,7 @@ class DataFrame {
         }
         slope /= timeStd;
         bias = mean - slope * timeMean;
-
-        ArrayList<String> output = new ArrayList<>();
-        output.add(String.format("%s,%d,%d\n", key, start, end));
-        output.add(String.format("%.2f,%.2f\n", slope, bias));
-
-        openCSV.writeCSV(output, "output.csv");
+        openCSV.addLineCSV(String.format("%s,%d,%d\n%.2f,%.2f\n", key, start, end, slope, bias), "output.csv");
     }
 
 }
