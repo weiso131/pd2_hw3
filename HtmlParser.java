@@ -8,18 +8,21 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Queue;
+import java.util.LinkedList;
 
 public class HtmlParser {
     public static void main(String[] args) {
-        int count = -1;
-        // saveCsv("https://pd2-hw3.netdb.csie.ncku.edu.tw/");
-        while (count != saveCsv("https://pd2-hw3.netdb.csie.ncku.edu.tw/")) {
-            if (count == -1)
-                count = saveCsv("https://pd2-hw3.netdb.csie.ncku.edu.tw/");
-            try {
-                Thread.sleep(120000);
-            } catch (InterruptedException e) {
-                System.err.println(e);
+        if (args[0].equals("0"))
+            saveCsv("https://pd2-hw3.netdb.csie.ncku.edu.tw/");
+        else {
+            DataFrame df = openCSV.readCSV_value("data.csv");
+            if (args[1].equals("0")) {
+            }
+            if (args[1].equals("1")) {
+                String stock = args[2];
+                int start = Integer.parseInt(args[3]), end = Integer.parseInt(args[4]);
+                df.slideMean(5, stock, start, end);
             }
         }
 
@@ -96,6 +99,8 @@ class openCSV {
             ArrayList<Double> data = new ArrayList<>();
             for (String s : oneDayData)
                 data.add(Double.parseDouble(s));
+
+            datas.add(data);
         }
 
         DataFrame df = new DataFrame(names, datas);
@@ -124,4 +129,39 @@ class DataFrame {
         this.datas = datas;
     }
 
+    public Double get(String key, int index) {
+        int nameIndex = names.indexOf(key);
+        return datas.get(index).get(nameIndex);
+    }
+
+    public void slideMean(int range, String key, int start, int end) {
+        double sum = 0;
+        Queue<Double> queue = new LinkedList<Double>();
+        ArrayList<String> output = new ArrayList<>();
+        String outputData = "";
+
+        for (int i = start - 1; i < end; i++) {
+            sum += get(key, i);
+            queue.offer(get(key, i));
+
+            if (queue.size() > range)
+                sum -= queue.poll();
+            if (queue.size() == range) {
+                String spilt = ",";
+                if (i == end - 1)
+                    spilt = "\n";
+                outputData += String.format("%.2f", sum / range) + spilt;
+            }
+        }
+
+        output.add(String.format("%s,%d,%d\n", key, start, end));
+        output.add(outputData);
+        openCSV.writeCSV(output, "output.csv");
+    }
+
 }
+
+// javac -cp ".;./jsoup.jar" HtmlParser.java
+
+// task1
+// java -cp ".;./jsoup.jar" HtmlParser 1 1 AAL 1 10
