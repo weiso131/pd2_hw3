@@ -24,6 +24,12 @@ public class HtmlParser {
                 int start = Integer.parseInt(args[3]), end = Integer.parseInt(args[4]);
                 df.slideMean(5, stock, start, end);
             }
+            if (args[1].equals("2")) {
+                String stock = args[2];
+                int start = Integer.parseInt(args[3]), end = Integer.parseInt(args[4]);
+                df.rangeStd(stock, start, end);
+            }
+
         }
 
     }
@@ -134,6 +140,24 @@ class DataFrame {
         return datas.get(index).get(nameIndex);
     }
 
+    private double MinMax(double x, double y, boolean compare) {
+        if (x < y == compare)
+            return x;
+        else
+            return y;
+    }
+
+    private double sqrt(double x) {
+        double l = MinMax(x, 1, true), r = MinMax(x, 1, false);
+        while (r - l > 1e-9) {
+            if ((l + r) * (l + r) / 4 > x)
+                r = (l + r) / 2;
+            else
+                l = (l + r) / 2;
+        }
+        return l;
+    }
+
     public void slideMean(int range, String key, int start, int end) {
         double sum = 0;
         Queue<Double> queue = new LinkedList<Double>();
@@ -159,9 +183,24 @@ class DataFrame {
         openCSV.writeCSV(output, "output.csv");
     }
 
+    public void rangeStd(String key, int start, int end) {
+        double mean = 0, std = 0;
+        for (int i = start - 1; i < end; i++)
+            mean += get(key, i) / (end - start + 1);
+        for (int i = start - 1; i < end; i++)
+            std += (get(key, i) - mean) * (get(key, i) - mean) / (end - start);
+
+        ArrayList<String> output = new ArrayList<>();
+        output.add(String.format("%s,%d,%d\n%.2f", key, start, end, std));
+        openCSV.writeCSV(output, "output.csv");
+    }
+
 }
 
 // javac -cp ".;./jsoup.jar" HtmlParser.java
 
 // task1
 // java -cp ".;./jsoup.jar" HtmlParser 1 1 AAL 1 10
+
+// task2
+// java -cp ".;./jsoup.jar" HtmlParser 1 2 AAL 1 10
